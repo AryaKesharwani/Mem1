@@ -1,0 +1,271 @@
+"""
+Minimal vector store adapters for Memory Agent.
+
+Provides simple abstractions for vector storage with InMemory (default) 
+and ChromaDB (optional) implementations.
+"""
+
+import asyncio
+import json
+import logging
+import uuid
+from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Any, Tuple
+import numpy as np
+
+from .config import MemoryConfig
+from .models import MemoryRecord, MemoryType
+
+# Try to import ChromaDB, fall back to in-memory if not available
+try:
+    import chromadb
+    from chromadb.config import Settings
+    CHROMA_AVAILABLE = True
+except ImportError:
+    CHROMA_AVAILABLE = False
+
+
+class VectorStore(ABC):
+    """Abstract base class for vector storage backends."""
+    
+    def __init__(self, config: MemoryConfig, collection_name: str = "default"):
+        self.config = config
+        self.collection_name = collection_name
+        self.logger = logging.getLogger(__name__)
+    
+    @abstractmethod
+    async def add_records(self, records: List[MemoryRecord]) -> List[str]:
+        """Add memory records to the store."""
+        pass
+    
+    @abstractmethod
+    async def search_records(
+        self,
+        query_embedding: List[float],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Tuple[MemoryRecord, float]]:
+        """Search for similar records using vector similarity."""
+        pass
+    
+    @abstractmethod
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about the store."""
+        pass
+
+
+class InMemoryStore(VectorStore):
+    """In-memory vector store using dictionaries and numpy."""
+    
+    def __init__(self, config: MemoryConfig, collection_name: str = "default"):
+        super().__init__(config, collection_name)
+        self.records: Dict[str, MemoryRecord] = {}
+        self.embeddings: Dict[str, np.ndarray] = {}
+        self.logger.info(f"InMemoryStore initialized: {collection_name}")
+    
+    async def add_records(self, records: List[MemoryRecord]) -> List[str]:
+        """Add records to in-memory store."""
+        record_ids = []
+        for record in records:
+            record_id = record.id or str(uuid.uuid4())
+            record.id = record_id
+            self.records[record_id] = record
+            if record.embedding:
+                self.embeddings[record_id] = np.array(record.embedding, dtype=np.float32)
+            record_ids.append(record_id)
+        return record_ids
+    
+    async def search_records(
+        self,
+        query_embedding: List[float],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Tuple[MemoryRecord, float]]:
+        """Search using cosine similarity."""
+        if not self.embeddings:
+            return []
+        
+        query_vec = np.array(query_embedding, dtype=np.float32)
+        query_norm = np.linalg.norm(query_vec)
+        
+        if query_norm == 0:
+            return []
+        
+        similarities = []
+        for record_id, embedding in self.embeddings.items():
+            if record_id not in self.records:
+                continue
+            
+            record = self.records[record_id]
+            
+            # Apply filters
+            if filters:
+                if filters.get("tenant_id") and record.tenant_id != filters["tenant_id"]:
+                    continue
+                if filters.get("user_id") and record.user_id != filters["user_id"]:
+                    continue
+                if filters.get("memory_type") and record.memory_type.value != filters["memory_type"]:
+                    continue
+            
+            embedding_norm = np.linalg.norm(embedding)
+            if embedding_norm == 0:
+                continue
+            
+            similarity = np.dot(query_vec, embedding) / (query_norm * embedding_norm)
+            similarities.append((record, float(similarity)))
+        
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:limit]
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get store statistics."""
+        return {
+            "total_records": len(self.records),
+            "records_with_embeddings": len(self.embeddings),
+            "collection_name": self.collection_name,
+            "store_type": "in_memory"
+        }
+
+
+class ChromaStore(VectorStore):
+    """ChromaDB vector store implementation."""
+    
+    def __init__(self, config: MemoryConfig, collection_name: str = "default"):
+        super().__init__(config, collection_name)
+        
+        if not CHROMA_AVAILABLE:
+            raise ImportError("ChromaDB not available. Install with: pip install chromadb")
+        
+        # Initialize ChromaDB client
+        self.client = chromadb.Client(Settings(
+            chroma_db_impl="duckdb+parquet",
+            persist_directory=f"{config.data_root}/chroma"
+        ))
+        
+        # Get or create collection
+        self.collection = self.client.get_or_create_collection(
+            name=collection_name,
+            metadata={"description": f"Memory Agent collection: {collection_name}"}
+        )
+        
+        self.logger.info(f"ChromaStore initialized: {collection_name}")
+    
+    async def add_records(self, records: List[MemoryRecord]) -> List[str]:
+        """Add records to ChromaDB."""
+        if not records:
+            return []
+        
+        record_ids = []
+        embeddings = []
+        documents = []
+        metadatas = []
+        
+        for record in records:
+            record_id = record.id or str(uuid.uuid4())
+            record.id = record_id
+            
+            record_ids.append(record_id)
+            embeddings.append(record.embedding or [0.0] * self.config.vector_dimension)
+            documents.append(record.content)
+            metadatas.append(self._prepare_metadata(record))
+        
+        self.collection.add(
+            ids=record_ids,
+            embeddings=embeddings,
+            documents=documents,
+            metadatas=metadatas
+        )
+        
+        return record_ids
+    
+    async def search_records(
+        self,
+        query_embedding: List[float],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Tuple[MemoryRecord, float]]:
+        """Search using ChromaDB."""
+        where_clause = self._prepare_where_clause(filters)
+        
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit,
+            where=where_clause if where_clause else None
+        )
+        
+        records_with_scores = []
+        if results["ids"] and results["ids"][0]:
+            for i, record_id in enumerate(results["ids"][0]):
+                distance = results["distances"][0][i] if results["distances"] else 0.0
+                similarity = max(0.0, 1.0 - distance)
+                
+                metadata = results["metadatas"][0][i]
+                document = results["documents"][0][i]
+                
+                record = self._metadata_to_record(record_id, document, metadata)
+                records_with_scores.append((record, similarity))
+        
+        return records_with_scores
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get ChromaDB statistics."""
+        try:
+            count = self.collection.count()
+            return {
+                "total_records": count,
+                "collection_name": self.collection_name,
+                "store_type": "chromadb"
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def _prepare_metadata(self, record: MemoryRecord) -> Dict[str, Any]:
+        """Prepare metadata for ChromaDB storage."""
+        return {
+            "memory_type": record.memory_type.value if isinstance(record.memory_type, MemoryType) else record.memory_type,
+            "tenant_id": record.tenant_id,
+            "user_id": record.user_id,
+            "conversation_id": record.conversation_id or "",
+            "confidence": record.confidence,
+            "importance": record.importance,
+            "created_at": record.created_at.isoformat(),
+        }
+    
+    def _prepare_where_clause(self, filters: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Prepare where clause for ChromaDB filtering."""
+        if not filters:
+            return None
+        
+        where_clause = {}
+        for key, value in filters.items():
+            if key in ["tenant_id", "user_id", "memory_type", "conversation_id"]:
+                where_clause[key] = value
+        
+        return where_clause if where_clause else None
+    
+    def _metadata_to_record(self, record_id: str, document: str, metadata: Dict[str, Any]) -> MemoryRecord:
+        """Convert ChromaDB metadata back to MemoryRecord."""
+        return MemoryRecord(
+            id=record_id,
+            content=document,
+            memory_type=MemoryType(metadata["memory_type"]),
+            tenant_id=metadata["tenant_id"],
+            user_id=metadata["user_id"],
+            conversation_id=metadata.get("conversation_id"),
+            confidence=metadata["confidence"],
+            importance=metadata["importance"],
+            created_at=datetime.fromisoformat(metadata["created_at"]),
+        )
+
+
+def create_vector_store(
+    config: MemoryConfig,
+    store_type: str = "memory",
+    collection_name: str = "default"
+) -> VectorStore:
+    """Factory function to create vector store instances."""
+    if store_type.lower() == "chroma" and CHROMA_AVAILABLE:
+        return ChromaStore(config, collection_name)
+    else:
+        return InMemoryStore(config, collection_name)
