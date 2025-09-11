@@ -1,34 +1,21 @@
 # Memory Agent Dependencies - Python 3.10+
 
-# Core dependencies
-pyyaml>=6.0
+# Core
 python-dotenv>=1.0.0
 
-# Vector storage and embeddings
-chromadb>=0.4.0
+# Embeddings / Vector search
 sentence-transformers>=2.2.0
 numpy>=1.24.0
 
-# Document processing for RAG
+# Optional vector store (enabled automatically if installed)
+# chromadb>=0.4.0
+
+# RAG document processing
 pdfminer.six>=20221105
 beautifulsoup4>=4.12.0
-python-docx>=0.8.11
-pandas>=2.0.0
 
-# Text processing and NLP
-nltk>=3.8
-spacy>=3.6.0
-tiktoken>=0.5.0
-
-# LLM integration
+# LLM integration (arbiter)
 openai>=1.0.0
-anthropic>=0.7.0
 
-# Caching and storage
+# STM backend
 redis>=4.5.0
-diskcache>=5.6.0
-
-# Utilities
-requests>=2.31.0
-dateparser>=1.1.8
-regex>=2023.6.3

@@ -73,8 +73,9 @@ async def handle(
         [SEMANTIC] User prefers boutique hotels and local cuisine...
         [RAG] Paris travel guide: Top attractions include...
     """
-    # Input validation
-    if not all([query, tenant_id, user_id, agent_id, conversation_id]):
+    # Input validation (allow empty string query but not None)
+    required = [tenant_id, user_id, agent_id, conversation_id]
+    if any(x is None for x in required) or query is None:
         raise ValueError("Missing required parameters: query, tenant_id, user_id, agent_id, conversation_id")
     
     # Get memory agent instance

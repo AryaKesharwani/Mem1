@@ -8,7 +8,7 @@ import hashlib
 import struct
 import math
 import logging
-from typing import Optional, List
+from typing import Optional, List, Dict
 from .config import MemoryConfig
 
 
@@ -29,6 +29,9 @@ def estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+_EMBEDDING_MODEL_CACHE: Dict[str, object] = {}
+
+
 async def generate_embedding(text: str, config: MemoryConfig) -> Optional[List[float]]:
     """
     Generate embedding for text using the configured embedding model.
@@ -47,10 +50,13 @@ async def generate_embedding(text: str, config: MemoryConfig) -> Optional[List[f
         # Try to use sentence-transformers for real embeddings
         try:
             from sentence_transformers import SentenceTransformer
-            
-            # Initialize model (could be cached globally for better performance)
-            model = SentenceTransformer(config.embedding_model)
-            
+
+            # Cache model instance per embedding_model for performance
+            model = _EMBEDDING_MODEL_CACHE.get(config.embedding_model)
+            if model is None:
+                model = SentenceTransformer(config.embedding_model)
+                _EMBEDDING_MODEL_CACHE[config.embedding_model] = model
+
             # Generate embedding
             embedding = model.encode(text, convert_to_tensor=False)
             

@@ -40,9 +40,20 @@ class MemoryConfig:
     stm_window_size: int = 10                   # Number of conversation turns to keep
     stm_cache_ttl: int = 3600                   # Cache TTL in seconds (1 hour)
     stm_max_turns: int = 10                     # Maximum turns to return in queries
+    # Redis settings for STM
+    use_redis_stm: bool = True                  # Use Redis backend for STM
+    redis_host: str = "127.0.0.1"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+    redis_ssl: bool = False
+    redis_prefix: str = "memory_agent"         # Namespace prefix for Redis keys
     
     # Semantic memory settings
     semantic_max_results: int = 5               # Maximum semantic facts to return
+    # Include low-confidence semantic items as fallback (top-k)
+    semantic_include_low_conf: bool = True
+    semantic_low_conf_fallback_k: int = 2
     
     # Episodic memory settings
     episodic_max_results: int = 5               # Maximum episodic events to return
@@ -108,6 +119,8 @@ class MemoryConfig:
         # Token budgets
         self.default_token_budget = self._get_int_env("MEMORY_TOKEN_BUDGET", self.default_token_budget)
         self.stm_token_allocation = self._get_int_env("MEMORY_STM_TOKENS", self.stm_token_allocation)
+        self.semantic_low_conf_fallback_k = self._get_int_env("MEMORY_SEMANTIC_LOWCONF_K", self.semantic_low_conf_fallback_k)
+        self.semantic_include_low_conf = self._get_bool_env("MEMORY_SEMANTIC_INCLUDE_LOWCONF", self.semantic_include_low_conf)
         
         # LLM settings
         self.llm_model = os.getenv("MEMORY_LLM_MODEL", self.llm_model)
@@ -115,6 +128,15 @@ class MemoryConfig:
         
         # Data paths
         self.data_root = os.getenv("MEMORY_DATA_ROOT", self.data_root)
+
+        # Redis connection overrides
+        self.use_redis_stm = self._get_bool_env("MEMORY_USE_REDIS_STM", self.use_redis_stm)
+        self.redis_host = os.getenv("MEMORY_REDIS_HOST", self.redis_host)
+        self.redis_port = self._get_int_env("MEMORY_REDIS_PORT", self.redis_port)
+        self.redis_db = self._get_int_env("MEMORY_REDIS_DB", self.redis_db)
+        self.redis_password = os.getenv("MEMORY_REDIS_PASSWORD", self.redis_password or "") or None
+        self.redis_ssl = self._get_bool_env("MEMORY_REDIS_SSL", self.redis_ssl)
+        self.redis_prefix = os.getenv("MEMORY_REDIS_PREFIX", self.redis_prefix)
     
     def _get_bool_env(self, key: str, default: bool) -> bool:
         """Get boolean environment variable."""

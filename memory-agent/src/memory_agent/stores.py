@@ -12,7 +12,43 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
-import numpy as np
+import math
+# Optional numpy import with lightweight fallback
+try:
+    import numpy as np  # type: ignore
+    _NUMPY_AVAILABLE = True
+except ImportError:  # Fallback shim to avoid hard dependency in tests
+    _NUMPY_AVAILABLE = False
+
+    class _LinalgShim:
+        @staticmethod
+        def norm(v):
+            try:
+                return math.sqrt(sum(float(x) * float(x) for x in v))
+            except Exception:
+                return 0.0
+
+    class _NPShim:
+        linalg = _LinalgShim()
+
+        @staticmethod
+        def array(seq, dtype=None):
+            try:
+                return [float(x) for x in seq]
+            except Exception:
+                return list(seq)
+
+        @staticmethod
+        def dot(a, b):
+            try:
+                return float(sum(float(x) * float(y) for x, y in zip(a, b)))
+            except Exception:
+                return 0.0
+
+        # Provide float32 constant for compatibility
+        float32 = float
+
+    np = _NPShim()  # type: ignore
 
 from .config import MemoryConfig
 from .models import MemoryRecord, MemoryType

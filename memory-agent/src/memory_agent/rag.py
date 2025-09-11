@@ -150,9 +150,17 @@ class DocumentProcessor:
         # Remove control characters
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
         
-        # Normalize quotes
-        text = text.replace('"', '"').replace('"', '"')
-        text = text.replace(''', "'").replace(''', "'")
+        # Normalize curly quotes to ASCII
+        try:
+            text = (text
+                    .replace('\u201c', '"')  # left double quotation mark
+                    .replace('\u201d', '"')  # right double quotation mark
+                    .replace('\u2018', "'")  # left single quotation mark
+                    .replace('\u2019', "'")  # right single quotation mark)
+                   )
+        except Exception:
+            # If any unexpected encoding issues occur, continue with original text
+            pass
         
         return text.strip()
     

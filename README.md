@@ -1,74 +1,90 @@
-# Memory Agent - Multi-System Memory Orchestrator
+# Memory Agent — Multi-System Memory Orchestrator
 
-A sophisticated memory system for AI agents that coordinates between multiple memory types to provide intelligent context retrieval and storage.
+A modular memory layer for AI agents that coordinates multiple memory types to provide useful context retrieval and storage.
 
-## 🧠 Memory Systems
+## Memory Systems
 
-- **STM (Short-term Memory)**: Conversation context and working memory
-- **Semantic Memory**: Facts, preferences, and stable knowledge about users
-- **Episodic Memory**: Events, experiences, and temporal context
-- **RAG Memory**: Document-based knowledge retrieval
+- STM (Short-term): Recent conversation turns and working memory
+- Semantic: Facts, preferences, and stable user knowledge
+- Episodic: Events, experiences, and temporal context
+- RAG: Document-based knowledge retrieval (chunking + embeddings)
 
-## 🚀 Features
+## Features
 
-- **Intelligent Routing**: Deterministic rules with LLM arbiter fallback
-- **Multi-tenant Support**: Organization and user-level data isolation
-- **Token Budget Management**: Efficient context merging within limits
-- **Confidence Scoring**: Quality-based memory persistence
-- **Fallback Mechanisms**: Graceful degradation when systems fail
-- **Comprehensive Testing**: 10+ test scenarios with edge case handling
+- Deterministic routing with optional LLM arbiter fallback
+- Multi-tenant isolation (tenant → user → conversation)
+- Token budget management and reranking/merging
+- Confidence/relevance scoring and thresholds
+- Redis-backed STM with in-memory fallback
+- Comprehensive CLI test suite with edge cases
 
-## 📦 Installation
+## Requirements
 
-1. Clone the repository:
+- Python 3.10+
+- Redis (optional, recommended for STM)
+- See `memory-agent/requirements.txt` for Python packages
+
+## Installation
+
 ```bash
-git clone https://github.com/Yashkalwar/Mem1.git
-cd Mem1
+git clone <this-repo>
+cd <repo-root>
+python -m venv .venv && . .venv/Scripts/activate  # Windows PowerShell
+# or: source .venv/bin/activate  # macOS/Linux
+
+pip install -r memory-agent/requirements.txt
 ```
 
-2. Install dependencies:
-```bash
-cd memory-agent
-pip install -r requirements.txt
-```
+## Configuration
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your OpenAI API key
-```
-
-## 🔧 Configuration
-
-The system uses environment variables for configuration:
+Set environment variables (via `.env` or your environment):
 
 ```bash
-OPENAI_API_KEY=your_openai_api_key_here
+# Core
+OPENAI_API_KEY=your_openai_api_key_here        # For LLM arbiter (optional)
+
+# Enable/disable systems
 MEMORY_ENABLE_SEMANTIC=true
 MEMORY_ENABLE_EPISODIC=true
 MEMORY_ENABLE_RAG=true
 MEMORY_ENABLE_STM=true
 MEMORY_TOKEN_BUDGET=4000
+
+# STM / Redis
+MEMORY_USE_REDIS_STM=true
+MEMORY_REDIS_HOST=127.0.0.1
+MEMORY_REDIS_PORT=6379
+MEMORY_REDIS_DB=0
+MEMORY_REDIS_PASSWORD=
+MEMORY_REDIS_SSL=false
+MEMORY_REDIS_PREFIX=memory_agent
+
+# Semantic fallback behavior
+MEMORY_SEMANTIC_INCLUDE_LOWCONF=true
+MEMORY_SEMANTIC_LOWCONF_K=2
 ```
 
-## 🎯 Usage
+Notes:
+- If Redis is not reachable, STM falls back to in-memory automatically.
+- SentenceTransformer embeddings are cached in-process to reduce latency.
+- ChromaDB is optional; in-memory vector search is used by default.
 
-### Basic Query Example
+## Usage
 
 ```python
 from memory_agent import handle, post_write
 
-# Write conversation data
+# Persist a conversation turn
 await post_write(
     user_text="I prefer Italian food over Chinese food",
-    assistant_text="I'll remember your preference for Italian cuisine",
+    assistant_text="Got it — I'll remember that",
     tenant_id="org1",
     user_id="user123",
     agent_id="assistant",
     conversation_id="conv_456"
 )
 
-# Query for context
+# Retrieve merged context for a new query
 result = await handle(
     query="What are my food preferences?",
     tenant_id="org1",
@@ -76,30 +92,10 @@ result = await handle(
     agent_id="assistant",
     conversation_id="conv_456"
 )
-
-print(result["merged_context"])
+print(result["merged_context"])  # Sectioned STM/SEM/EPI/RAG context
 ```
 
-### Response Format
-
-```json
-{
-    "merged_context": "[STM] Recent conversation...\n[SEMANTIC] User prefers Italian food...",
-    "routing_decision": {
-        "use_stm": true,
-        "use_semantic": true,
-        "confidence": 0.85,
-        "reasoning": "preference patterns detected"
-    },
-    "query_metadata": {
-        "query_time_ms": 45.2,
-        "systems_queried": ["stm", "semantic"],
-        "total_tokens": 150
-    }
-}
-```
-
-## 🧪 Testing
+## Testing
 
 Run the comprehensive test suite:
 
@@ -107,93 +103,39 @@ Run the comprehensive test suite:
 python test_memory_agent.py
 ```
 
-Or use the test runner:
+Or via the test runner:
 
 ```bash
 python run_tests.py
 ```
 
-### Test Coverage
-
-- System health and configuration validation
-- All memory systems (STM, Semantic, Episodic, RAG)
-- Routing decisions and confidence scoring
-- Edge cases (empty queries, special characters)
-- Fallback mechanisms and error handling
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   API Layer     │───▶│  Memory Agent    │───▶│  Memory Router  │
-│  (handle/write) │    │  (Orchestrator)  │    │ (Route Queries) │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-                       ┌──────────────────┐    ┌─────────────────┐
-                       │   LLM Arbiter    │    │ Memory Systems  │
-                       │ (Fallback Logic) │    │ STM│SEM│EPI│RAG │
-                       └──────────────────┘    └─────────────────┘
-```
-
-## 🔍 Key Improvements
-
-### STM Memory Persistence
-- Fixed instance isolation with global buffer sharing
-- Improved conversation context retention
-- Enhanced fallback mechanisms
-
-### Semantic Memory Enhancement
-- Better preference extraction patterns
-- Comparative preference support ("I prefer X over Y")
-- Confidence-based fact persistence
-
-### Router Integration
-- Deterministic routing with LLM fallback
-- Confidence threshold management
-- Comprehensive error handling
-
-## 📊 Performance
-
-- **Query Response Time**: ~45ms average
-- **Token Budget**: Configurable (default 4000 tokens)
-- **Memory Systems**: Parallel querying for optimal performance
-- **Fallback Latency**: <100ms for degraded operations
-
-## 🛠️ Development
-
-### Project Structure
+## Project Structure
 
 ```
 memory-agent/
-├── src/memory_agent/
-│   ├── agent.py          # Main orchestrator
-│   ├── router.py         # Routing logic
-│   ├── arbiter.py        # LLM fallback
-│   ├── stm.py           # Short-term memory
-│   ├── memory_store.py   # Semantic/Episodic
-│   ├── rag.py           # Document retrieval
-│   └── config.py        # Configuration
-├── requirements.txt
-└── README.md
+  src/memory_agent/
+    agent.py         # Orchestrator
+    router.py        # Deterministic routing
+    arbiter.py       # LLM fallback
+    stm.py           # STM manager (Redis + memory)
+    memory_store.py  # Semantic/Episodic manager
+    rag.py           # RAG manager (ingest/query)
+    services.py      # Reranker/merging
+    config.py        # Configuration + env overrides
 ```
 
-### Contributing
+## Optional Backends
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+- Vector store: install `chromadb` to persist embeddings to DuckDB/Parquet.
+- STM: connect Redis to persist conversation context across runs.
 
-## 📝 License
+## Tips
 
-MIT License - see LICENSE file for details.
+- For offline runs, set `MEMORY_ENABLE_LLM_ARBITER=false`.
+- Adjust token allocations in `config.py` to tune merged context budgets.
+- Review `test_memory_agent.py` for end-to-end usage scenarios.
 
-## 🤝 Support
+## License
 
-For issues and questions:
-- Create an issue on GitHub
-- Check the test suite for usage examples
-- Review the configuration options in `config.py`
+MIT License — see LICENSE if provided.
+

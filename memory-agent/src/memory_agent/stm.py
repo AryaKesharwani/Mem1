@@ -169,7 +169,18 @@ class STMManager:
         # Use Redis STM if available and enabled, otherwise in-memory
         if REDIS_AVAILABLE and getattr(config, 'use_redis_stm', True):
             try:
-                self._backend = Redis()
+                # Initialize Redis client from config
+                self._backend: Optional[Redis] = Redis(
+                    host=config.redis_host,
+                    port=config.redis_port,
+                    db=config.redis_db,
+                    password=config.redis_password,
+                    ssl=config.redis_ssl,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                )
+                # Test connection
+                self._backend.ping()
                 self._use_redis = True
                 self.logger.info("STMManager initialized with Redis backend")
             except Exception as e:
@@ -179,6 +190,14 @@ class STMManager:
         else:
             self._backend = None
             self._use_redis = False
+
+    def _conv_key(self, tenant_id: str, user_id: str, conversation_id: str) -> str:
+        prefix = getattr(self.config, 'redis_prefix', 'memory_agent')
+        return f"{prefix}:stm:conv:{tenant_id}:{user_id}:{conversation_id}"
+
+    def _wm_key(self, tenant_id: str, user_id: str, conversation_id: str) -> str:
+        prefix = getattr(self.config, 'redis_prefix', 'memory_agent')
+        return f"{prefix}:stm:wm:{tenant_id}:{user_id}:{conversation_id}"
     
     def _init_memory_backend(self):
         """Initialize in-memory backend."""
@@ -283,9 +302,14 @@ class STMManager:
         
         return {
             "system": "stm",
+            "memory_type": "stm",
             "content": "\n".join(context_parts),
             "metadata": {"source": "stm", "turn_count": len(recent_turns)},
-            "token_count": sum(len(turn['user_text']) + len(turn['assistant_text']) for turn in recent_turns) // 4
+            "token_count": sum(len(turn['user_text']) + len(turn['assistant_text']) for turn in recent_turns) // 4,
+            # Provide defaults used by reranker scoring
+            "confidence": 1.0,
+            "importance": 0.8,
+            "relevance_score": 0.9
         }
     
     async def _query_memory_history(
@@ -539,9 +563,39 @@ class STMManager:
         assistant_text: str,
         metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
-        """Write to Redis backend (placeholder - falls back to memory)."""
-        self.logger.warning("Redis backend not fully implemented, falling back to memory backend")
-        return await self._write_memory_backend(conversation_id, tenant_id, user_id, user_text, assistant_text, metadata)
+        """Write a conversation turn and working memory to Redis backend."""
+        if not self._backend:
+            return await self._write_memory_backend(conversation_id, tenant_id, user_id, user_text, assistant_text, metadata)
+        try:
+            turn = {
+                "user_text": user_text,
+                "assistant_text": assistant_text,
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "metadata": metadata or {}
+            }
+            list_key = self._conv_key(tenant_id, user_id, conversation_id)
+            ttl = int(getattr(self.config, 'stm_cache_ttl', 3600))
+            window = int(getattr(self.config, 'stm_window_size', 10))
+
+            pipe = self._backend.pipeline()
+            pipe.rpush(list_key, json.dumps(turn))
+            # Keep only the last N items (window)
+            pipe.ltrim(list_key, -window, -1)
+            pipe.expire(list_key, ttl)
+
+            # Working memory updates (optional)
+            if metadata and isinstance(metadata.get("working_memory_updates"), dict):
+                wm_key = self._wm_key(tenant_id, user_id, conversation_id)
+                for k, v in metadata["working_memory_updates"].items():
+                    pipe.hset(wm_key, k, json.dumps({"value": v, "timestamp": datetime.now(timezone.utc).isoformat()}))
+                pipe.expire(wm_key, ttl)
+
+            pipe.execute()
+            return True
+        except Exception as e:
+            self.logger.warning(f"Redis STM write failed, falling back to memory: {e}")
+            return await self._write_memory_backend(conversation_id, tenant_id, user_id, user_text, assistant_text, metadata)
     
     async def _query_redis_backend(
         self,
@@ -551,9 +605,47 @@ class STMManager:
         conversation_id: str,
         max_turns: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
-        """Query Redis backend (placeholder - falls back to memory)."""
-        self.logger.warning("Redis backend not fully implemented, falling back to memory backend")
-        return await self._query_memory_backend(query, tenant_id, user_id, conversation_id, max_turns)
+        """Query recent conversation context from Redis backend."""
+        if not self._backend:
+            return await self._query_memory_backend(query, tenant_id, user_id, conversation_id, max_turns)
+        try:
+            list_key = self._conv_key(tenant_id, user_id, conversation_id)
+            max_turns = max_turns or self.config.stm_max_turns
+            # Get last N turns
+            raw_items = self._backend.lrange(list_key, -max_turns, -1)
+            if not raw_items:
+                return None
+            turns = []
+            for item in raw_items:
+                try:
+                    turns.append(json.loads(item))
+                except Exception:
+                    continue
+
+            if not turns:
+                return None
+
+            # Format context
+            context_parts = []
+            for t in turns:
+                context_parts.append(f"User: {t.get('user_text','')}")
+                context_parts.append(f"Assistant: {t.get('assistant_text','')}")
+
+            content = "\n".join(context_parts)
+            token_count = sum(len(t.get('user_text','')) + len(t.get('assistant_text','')) for t in turns) // 4
+            return {
+                "system": "stm",
+                "memory_type": "stm",
+                "content": content,
+                "metadata": {"source": "stm", "turn_count": len(turns)},
+                "token_count": token_count,
+                "confidence": 1.0,
+                "importance": 0.8,
+                "relevance_score": 0.9
+            }
+        except Exception as e:
+            self.logger.warning(f"Redis STM query failed, falling back to memory: {e}")
+            return await self._query_memory_backend(query, tenant_id, user_id, conversation_id, max_turns)
     
     async def _query_redis_history(
         self,
@@ -562,9 +654,24 @@ class STMManager:
         user_id: str,
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """Query Redis history (placeholder - falls back to memory)."""
-        self.logger.warning("Redis backend not fully implemented, falling back to memory backend")
-        return await self._query_memory_history(conversation_id, tenant_id, user_id, limit)
+        """Query full conversation history from Redis backend (bounded by limit)."""
+        if not self._backend:
+            return await self._query_memory_history(conversation_id, tenant_id, user_id, limit)
+        try:
+            list_key = self._conv_key(tenant_id, user_id, conversation_id)
+            limit = limit or self.config.stm_max_turns
+            raw_items = self._backend.lrange(list_key, -limit, -1)
+            turns: List[Dict[str, Any]] = []
+            for item in raw_items:
+                try:
+                    t = json.loads(item)
+                    turns.append(t)
+                except Exception:
+                    continue
+            return turns
+        except Exception as e:
+            self.logger.warning(f"Redis STM history failed, falling back to memory: {e}")
+            return await self._query_memory_history(conversation_id, tenant_id, user_id, limit)
     
 
 

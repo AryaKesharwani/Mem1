@@ -140,11 +140,12 @@ Respond in JSON format:
     async def _query_openai(self, prompt: str) -> str:
         """Query OpenAI API for routing decision."""
         try:
-            import openai
             from openai import AsyncOpenAI
-            
-            # Initialize client with API key from config
-            client = AsyncOpenAI(api_key=self.config.openai_api_key)
+            # Prefer cached client if available
+            client = self._llm_client
+            if client is None:
+                client = self._init_llm_client()
+                self._llm_client = client
             
             response = await client.chat.completions.create(
                 model=self.config.llm_model,
@@ -257,6 +258,12 @@ Respond in JSON format:
     
     def _init_llm_client(self):
         """Initialize LLM client based on configuration."""
-        # This is a placeholder - actual implementation would initialize
-        # the appropriate LLM client based on config
-        return None
+        try:
+            from openai import AsyncOpenAI
+            if not self.config.openai_api_key:
+                raise RuntimeError("OPENAI_API_KEY not set")
+            return AsyncOpenAI(api_key=self.config.openai_api_key)
+        except Exception as e:
+            # Leave client as None; caller will fallback
+            self.logger.debug(f"LLM client init skipped: {e}")
+            return None

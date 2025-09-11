@@ -406,6 +406,7 @@ class MemoryAgent:
                     
                     return {
                         "system": "stm",
+                        "memory_type": "stm",
                         "content": "[STM] Recent conversation:\n" + "\n".join(content_parts),
                         "metadata": {"source": "stm", "turn_count": len(results)},
                         "token_count": sum(len(r['user_text']) + len(r['assistant_text']) for r in results) // 4
@@ -502,16 +503,28 @@ class MemoryAgent:
             semantic_results = results.get("semantic", [])
             if semantic_results:
                 content_parts = []
-                for record, score in semantic_results:
-                    if score >= self.config.semantic_confidence_threshold:
+                above = [(record, score) for record, score in semantic_results if score >= self.config.semantic_confidence_threshold]
+                if above:
+                    for record, score in above:
                         content_parts.append(f"- {record.content} (confidence: {score:.2f})")
+                elif self.config.semantic_include_low_conf and self.config.semantic_low_conf_fallback_k > 0:
+                    # Configurable fallback: include top-k low-confidence items to provide some context
+                    top_k = min(self.config.semantic_low_conf_fallback_k, len(semantic_results))
+                    for record, score in semantic_results[:top_k]:
+                        content_parts.append(f"- {record.content} (low confidence: {score:.2f})")
                 
                 if content_parts:
                     return {
                         "system": "semantic",
                         "memory_type": "semantic",
                         "content": "\n".join(content_parts),
-                        "metadata": {"source": "semantic", "fact_count": len(content_parts)},
+                        "metadata": {
+                            "source": "semantic",
+                            "fact_count": len(content_parts),
+                            "threshold": self.config.semantic_confidence_threshold,
+                            "low_conf_included": len(above) == 0 and self.config.semantic_include_low_conf,
+                            "low_conf_k": self.config.semantic_low_conf_fallback_k,
+                        },
                         "token_count": sum(len(part) for part in content_parts) // 4,
                         "confidence": max(score for _, score in semantic_results),
                         "relevance_score": max(score for _, score in semantic_results)

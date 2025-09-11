@@ -33,6 +33,13 @@ except ImportError as e:
     print("Make sure you're running this from the correct directory")
     sys.exit(1)
 
+# Configure output encoding to avoid Unicode issues on some consoles
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="ignore")
+    sys.stderr.reconfigure(encoding="utf-8", errors="ignore")
+except Exception:
+    pass
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

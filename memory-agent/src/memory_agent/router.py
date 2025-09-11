@@ -261,12 +261,12 @@ class MemoryRouter:
         if total_requested > routing.token_budget:
             scale_factor = routing.token_budget / total_requested
             routing.token_allocation = {
-                system: int(base_allocations[system] * scale_factor)
+                (system.value if isinstance(system, MemoryType) else str(system)): int(base_allocations[system] * scale_factor)
                 for system in active_systems
             }
         else:
             routing.token_allocation = {
-                system: base_allocations[system]
+                (system.value if isinstance(system, MemoryType) else str(system)): base_allocations[system]
                 for system in active_systems
             }
     
