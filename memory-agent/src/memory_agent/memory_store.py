@@ -334,7 +334,7 @@ class UnifiedMemoryManager:
             
             self.stores[store_key] = create_vector_store(
                 config=self.config,
-                store_type="memory",  # Use in-memory for now
+                store_type="chroma",  # Default to ChromaDB if available; fallback to in-memory otherwise
                 collection_name=collection_name
             )
         
