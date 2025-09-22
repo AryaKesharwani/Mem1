@@ -1,11 +1,14 @@
 # Memory Agent Dependencies - Python 3.10+
 
 # Core
-python-dotenv>=1.0.0
+python-dotenv
 
 # Embeddings / Vector search
 sentence-transformers>=2.2.0
 numpy>=1.24.0
+
+# Vector store - Pinecone (primary)
+pinecone-client
 
 # Optional vector store (enabled automatically if installed)
 # chromadb>=0.4.0
@@ -15,7 +18,7 @@ pdfminer.six>=20221105
 beautifulsoup4>=4.12.0
 
 # LLM integration (arbiter)
-openai>=1.0.0
+openai
 
 # STM backend
 redis>=4.5.0

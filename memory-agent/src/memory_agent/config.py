@@ -42,12 +42,12 @@ class MemoryConfig:
     stm_max_turns: int = 10                     # Maximum turns to return in queries
     # Redis settings for STM
     use_redis_stm: bool = True                  # Use Redis backend for STM
-    redis_host: str = "127.0.0.1"
-    redis_port: int = 6379
-    redis_db: int = 0
-    redis_password: Optional[str] = None
+    redis_host: str = "127.0.0.1" or os.getenv("MEMORY_REDIS_HOST")
+    redis_port: int = 6379 or os.getenv("MEMORY_REDIS_PORT")
+    redis_db: int = 0 or os.getenv("MEMORY_REDIS_DB")
+    redis_password: Optional[str] = None or os.getenv("MEMORY_REDIS_PASSWORD")
     redis_ssl: bool = False
-    redis_prefix: str = "memory_agent"         # Namespace prefix for Redis keys
+    redis_prefix: str = "memory_agent" or os.getenv("MEMORY_REDIS_PREFIX")         # Namespace prefix for Redis keys
     
     # Semantic memory settings
     semantic_max_results: int = 5               # Maximum semantic facts to return
@@ -65,6 +65,10 @@ class MemoryConfig:
     embedding_model: str = "all-MiniLM-L6-v2"  # Sentence transformer model
     vector_dimension: int = 384                 # Embedding dimension
     similarity_threshold: float = 0.7           # Minimum similarity for matches
+    
+    # Pinecone settings
+    pinecone_api_key: str = os.getenv("PINECONE_API_KEY")  # Load from environment variable
+    pinecone_environment: str = os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp")  # Default environment
     
     # RAG settings
     chunk_size: int = 512                       # Document chunk size in tokens
@@ -125,6 +129,10 @@ class MemoryConfig:
         # LLM settings
         self.llm_model = os.getenv("MEMORY_LLM_MODEL", self.llm_model)
         self.embedding_model = os.getenv("MEMORY_EMBEDDING_MODEL", self.embedding_model)
+        
+        # Pinecone settings
+        self.pinecone_api_key = os.getenv("PINECONE_API_KEY", self.pinecone_api_key)
+        self.pinecone_environment = os.getenv("PINECONE_ENVIRONMENT", self.pinecone_environment)
         
         # Data paths
         self.data_root = os.getenv("MEMORY_DATA_ROOT", self.data_root)

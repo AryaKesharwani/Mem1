@@ -53,6 +53,13 @@ except ImportError:  # Fallback shim to avoid hard dependency in tests
 from .config import MemoryConfig
 from .models import MemoryRecord, MemoryType
 
+# Try to import Pinecone, fall back to ChromaDB or in-memory if not available
+try:
+    import pinecone
+    PINECONE_AVAILABLE = True
+except ImportError:
+    PINECONE_AVAILABLE = False
+
 # Try to import ChromaDB, fall back to in-memory if not available
 try:
     import chromadb
@@ -162,6 +169,138 @@ class InMemoryStore(VectorStore):
             "collection_name": self.collection_name,
             "store_type": "in_memory"
         }
+
+
+class PineconeStore(VectorStore):
+    """Pinecone vector store implementation."""
+    
+    def __init__(self, config: MemoryConfig, collection_name: str = "default"):
+        super().__init__(config, collection_name)
+        
+        if not PINECONE_AVAILABLE:
+            raise ImportError("Pinecone not available. Install with: pip install pinecone-client")
+        
+        # Initialize Pinecone
+        pinecone.init(
+            api_key=config.pinecone_api_key,
+            environment=config.pinecone_environment
+        )
+        
+        # Get or create index
+        self.index_name = collection_name
+        if self.index_name not in pinecone.list_indexes():
+            pinecone.create_index(
+                name=self.index_name,
+                dimension=config.vector_dimension,
+                metric="cosine"
+            )
+        
+        self.index = pinecone.Index(self.index_name)
+        self.logger.info(f"PineconeStore initialized: {collection_name}")
+    
+    async def add_records(self, records: List[MemoryRecord]) -> List[str]:
+        """Add records to Pinecone."""
+        if not records:
+            return []
+        
+        vectors_to_upsert = []
+        record_ids = []
+        
+        for record in records:
+            record_id = record.id or str(uuid.uuid4())
+            record.id = record_id
+            
+            vectors_to_upsert.append({
+                "id": record_id,
+                "values": record.embedding or [0.0] * self.config.vector_dimension,
+                "metadata": self._prepare_metadata(record)
+            })
+            record_ids.append(record_id)
+        
+        # Batch upsert to Pinecone
+        self.index.upsert(vectors=vectors_to_upsert)
+        
+        return record_ids
+    
+    async def search_records(
+        self,
+        query_embedding: List[float],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Tuple[MemoryRecord, float]]:
+        """Search using Pinecone."""
+        query_response = self.index.query(
+            vector=query_embedding,
+            top_k=limit,
+            include_metadata=True,
+            filter=self._prepare_filter(filters) if filters else None
+        )
+        
+        records_with_scores = []
+        for match in query_response.matches:
+            record_id = match.id
+            similarity = float(match.score)
+            metadata = match.metadata
+            
+            record = self._metadata_to_record(record_id, metadata)
+            records_with_scores.append((record, similarity))
+        
+        return records_with_scores
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get Pinecone statistics."""
+        try:
+            stats = self.index.describe_index_stats()
+            return {
+                "total_records": stats.total_vector_count,
+                "collection_name": self.collection_name,
+                "store_type": "pinecone",
+                "dimension": stats.dimension,
+                "index_fullness": stats.index_fullness
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def _prepare_metadata(self, record: MemoryRecord) -> Dict[str, Any]:
+        """Prepare metadata for Pinecone storage."""
+        return {
+            "content": record.content,
+            "memory_type": record.memory_type.value if isinstance(record.memory_type, MemoryType) else record.memory_type,
+            "tenant_id": record.tenant_id,
+            "user_id": record.user_id,
+            "agent_id": record.agent_id,
+            "conversation_id": record.conversation_id or "",
+            "confidence": record.confidence,
+            "importance": record.importance,
+            "created_at": record.created_at.isoformat(),
+        }
+    
+    def _prepare_filter(self, filters: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Prepare filter for Pinecone filtering."""
+        if not filters:
+            return None
+        
+        pinecone_filter = {}
+        for key, value in filters.items():
+            if key in ["tenant_id", "user_id", "memory_type", "conversation_id", "agent_id"]:
+                pinecone_filter[key] = {"$eq": value}
+        
+        return pinecone_filter if pinecone_filter else None
+    
+    def _metadata_to_record(self, record_id: str, metadata: Dict[str, Any]) -> MemoryRecord:
+        """Convert Pinecone metadata back to MemoryRecord."""
+        return MemoryRecord(
+            id=record_id,
+            content=metadata["content"],
+            memory_type=MemoryType(metadata["memory_type"]),
+            tenant_id=metadata["tenant_id"],
+            user_id=metadata["user_id"],
+            agent_id=metadata.get("agent_id"),
+            conversation_id=metadata.get("conversation_id"),
+            confidence=metadata["confidence"],
+            importance=metadata["importance"],
+            created_at=datetime.fromisoformat(metadata["created_at"]),
+        )
 
 
 class ChromaStore(VectorStore):
@@ -297,11 +436,18 @@ class ChromaStore(VectorStore):
 
 def create_vector_store(
     config: MemoryConfig,
-    store_type: str = "memory",
+    store_type: str = "pinecone",
     collection_name: str = "default"
 ) -> VectorStore:
     """Factory function to create vector store instances."""
-    if store_type.lower() == "chroma" and CHROMA_AVAILABLE:
+    if store_type.lower() == "pinecone" and PINECONE_AVAILABLE:
+        return PineconeStore(config, collection_name)
+    elif store_type.lower() == "chroma" and CHROMA_AVAILABLE:
         return ChromaStore(config, collection_name)
     else:
+        # Fallback to in-memory store
+        if store_type.lower() == "pinecone" and not PINECONE_AVAILABLE:
+            logging.warning("Pinecone not available, falling back to in-memory store")
+        elif store_type.lower() == "chroma" and not CHROMA_AVAILABLE:
+            logging.warning("ChromaDB not available, falling back to in-memory store")
         return InMemoryStore(config, collection_name)
