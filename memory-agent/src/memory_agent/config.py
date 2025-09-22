@@ -68,7 +68,7 @@ class MemoryConfig:
     
     # Pinecone settings
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY")  # Load from environment variable
-    pinecone_environment: str = os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp")  # Default environment
+    pinecone_environment: str = os.getenv("PINECONE_ENVIRONMENT", "aws-us-west-2")  # Default to AWS us-west-2
     
     # RAG settings
     chunk_size: int = 512                       # Document chunk size in tokens

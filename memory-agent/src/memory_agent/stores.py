@@ -55,7 +55,7 @@ from .models import MemoryRecord, MemoryType
 
 # Try to import Pinecone, fall back to ChromaDB or in-memory if not available
 try:
-    import pinecone
+    from pinecone import Pinecone, ServerlessSpec
     PINECONE_AVAILABLE = True
 except ImportError:
     PINECONE_AVAILABLE = False
@@ -180,23 +180,65 @@ class PineconeStore(VectorStore):
         if not PINECONE_AVAILABLE:
             raise ImportError("Pinecone not available. Install with: pip install pinecone-client")
         
-        # Initialize Pinecone
-        pinecone.init(
-            api_key=config.pinecone_api_key,
-            environment=config.pinecone_environment
-        )
+        # Initialize Pinecone client
+        self.pc = Pinecone(api_key=config.pinecone_api_key)
         
         # Get or create index
-        self.index_name = collection_name
-        if self.index_name not in pinecone.list_indexes():
-            pinecone.create_index(
+        self.index_name = self._validate_collection_name(collection_name)
+        existing_indexes = self.pc.list_indexes()
+        
+        if self.index_name not in existing_indexes.names():
+            # Extract cloud and region from environment
+            cloud, region = self._parse_environment(config.pinecone_environment)
+            
+            self.pc.create_index(
                 name=self.index_name,
                 dimension=config.vector_dimension,
-                metric="cosine"
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud=cloud,
+                    region=region
+                )
             )
         
-        self.index = pinecone.Index(self.index_name)
-        self.logger.info(f"PineconeStore initialized: {collection_name}")
+        self.index = self.pc.Index(self.index_name)
+        if self.index_name != collection_name:
+            self.logger.info(f"PineconeStore initialized: {collection_name} -> {self.index_name}")
+        else:
+            self.logger.info(f"PineconeStore initialized: {self.index_name}")
+    
+    def _validate_collection_name(self, name: str) -> str:
+        """Validate and sanitize collection name for Pinecone compatibility."""
+        import re
+        # Convert to lowercase and replace invalid characters with hyphens
+        sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())
+        # Remove multiple consecutive hyphens
+        sanitized = re.sub(r'-+', '-', sanitized)
+        # Remove leading/trailing hyphens
+        sanitized = sanitized.strip('-')
+        # Ensure it's not empty and not too long (Pinecone limit is 45 chars)
+        if not sanitized:
+            sanitized = "default-collection"
+        elif len(sanitized) > 45:
+            sanitized = sanitized[:45].rstrip('-')
+        return sanitized
+    
+    def _parse_environment(self, environment: str) -> tuple[str, str]:
+        """Parse Pinecone environment string to extract cloud and region."""
+        # Default to AWS us-west-2 if parsing fails
+        if not environment or environment == "aws-us-west-2":
+            return "aws", "us-west-2"
+        
+        # Handle different environment formats
+        if "gcp" in environment.lower():
+            region = environment.replace("-gcp", "")
+            return "gcp", region
+        elif "aws" in environment.lower():
+            region = environment.replace("-aws", "")
+            return "aws", region
+        else:
+            # Assume AWS if no cloud specified
+            return "aws", environment
     
     async def add_records(self, records: List[MemoryRecord]) -> List[str]:
         """Add records to Pinecone."""
@@ -237,13 +279,14 @@ class PineconeStore(VectorStore):
         )
         
         records_with_scores = []
-        for match in query_response.matches:
-            record_id = match.id
-            similarity = float(match.score)
-            metadata = match.metadata
-            
-            record = self._metadata_to_record(record_id, metadata)
-            records_with_scores.append((record, similarity))
+        if query_response.matches:
+            for match in query_response.matches:
+                record_id = match.id
+                similarity = float(match.score)
+                metadata = match.metadata
+                
+                record = self._metadata_to_record(record_id, metadata)
+                records_with_scores.append((record, similarity))
         
         return records_with_scores
     

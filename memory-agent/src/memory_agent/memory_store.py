@@ -330,7 +330,8 @@ class UnifiedMemoryManager:
         store_key = f"{tenant_id}_{user_id}_{memory_type}"
         
         if store_key not in self.stores:
-            collection_name = f"{tenant_id}_{user_id}_{memory_type}_collection"
+            # Pinecone requires lowercase alphanumeric characters and hyphens only
+            collection_name = self._sanitize_collection_name(f"{tenant_id}-{user_id}-{memory_type}-collection")
             
             self.stores[store_key] = create_vector_store(
                 config=self.config,
@@ -339,3 +340,17 @@ class UnifiedMemoryManager:
             )
         
         return self.stores[store_key]
+    
+    def _sanitize_collection_name(self, name: str) -> str:
+        """Sanitize collection name for Pinecone compatibility."""
+        import re
+        # Convert to lowercase and replace invalid characters with hyphens
+        sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())
+        # Remove multiple consecutive hyphens
+        sanitized = re.sub(r'-+', '-', sanitized)
+        # Remove leading/trailing hyphens
+        sanitized = sanitized.strip('-')
+        # Ensure it's not empty
+        if not sanitized:
+            sanitized = "default-collection"
+        return sanitized

@@ -8,7 +8,7 @@ sentence-transformers>=2.2.0
 numpy>=1.24.0
 
 # Vector store - Pinecone (primary)
-pinecone-client
+pinecone
 
 # Optional vector store (enabled automatically if installed)
 # chromadb>=0.4.0
