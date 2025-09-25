@@ -527,7 +527,7 @@ class RAGMemoryManager:
             
             self.stores[store_key] = create_vector_store(
                 config=self.config,
-                store_type="chroma",  # Default to ChromaDB if available; fallback to in-memory otherwise
+                store_type="pinecone",  # Use Pinecone for RAG storage
                 collection_name=collection_name
             )
             
@@ -567,6 +567,7 @@ async def ingest_document(
     user_id: str,
     content_type: str = "text/plain",
     metadata: Optional[Dict[str, Any]] = None,
+    filename: Optional[str] = None,
     config: Optional[MemoryConfig] = None
 ) -> Dict[str, Any]:
     """Convenience function to ingest a document directly."""
@@ -576,7 +577,7 @@ async def ingest_document(
     rag_manager = RAGMemoryManager(config)
     
     return await rag_manager.ingest_document(
-        content, document_id, tenant_id, user_id, content_type, metadata
+        content, document_id, tenant_id, user_id, content_type, metadata, filename
     )
 
 

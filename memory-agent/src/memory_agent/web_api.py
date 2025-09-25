@@ -172,6 +172,10 @@ class DocumentUploadResponse(BaseModel):
     chunk_ids: List[str] = Field(..., description="List of chunk IDs")
     content_type: str = Field(..., description="Detected content type")
     file_size: int = Field(..., description="File size in bytes")
+    s3_stored: bool = Field(False, description="Whether document was stored in S3")
+    s3_key: Optional[str] = Field(None, description="S3 object key")
+    s3_url: Optional[str] = Field(None, description="S3 object URL")
+    content_hash: Optional[str] = Field(None, description="Content hash for integrity")
 
 
 class RAGQueryRequest(BaseModel):
@@ -462,7 +466,8 @@ async def upload_document(
             tenant_id=tenant_id,
             user_id=user_id,
             content_type=content_type,
-            metadata=parsed_metadata
+            metadata=parsed_metadata,
+            filename=file.filename
         )
         
         if result["status"] == "error":
@@ -471,13 +476,22 @@ async def upload_document(
                 detail=f"Document processing failed: {result.get('error', 'Unknown error')}"
             )
         
+        # Check if S3 storage was successful
+        s3_stored = result.get("s3_stored", False)
+        if not s3_stored:
+            logger.warning(f"Document {document_id} processed but not stored in S3. Check S3 configuration.")
+        
         response = DocumentUploadResponse(
             status=result["status"],
             document_id=result["document_id"],
             chunks_stored=result["chunks_stored"],
             chunk_ids=result["chunk_ids"],
             content_type=content_type,
-            file_size=len(content)
+            file_size=len(content),
+            s3_stored=s3_stored,
+            s3_key=result.get("s3_key"),
+            s3_url=result.get("s3_url"),
+            content_hash=result.get("content_hash")
         )
         
         logger.info(f"Document uploaded successfully: {document_id} ({result['chunks_stored']} chunks)")
@@ -712,7 +726,3 @@ async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Memory Agent API shutting down...")
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

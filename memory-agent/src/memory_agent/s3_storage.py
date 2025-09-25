@@ -435,14 +435,27 @@ def create_s3_storage(config: MemoryConfig) -> Optional[S3DocumentStorage]:
     """Create S3 document storage instance."""
     if not S3_AVAILABLE:
         logging.warning("S3 not available. Install boto3 to enable S3 document storage.")
+        logging.info("Run: pip install boto3")
         return None
     
     if not config.s3_bucket_name:
         logging.warning("S3 bucket name not configured. Set S3_BUCKET_NAME environment variable.")
+        logging.info("Required environment variables:")
+        logging.info("  S3_BUCKET_NAME=your-bucket-name")
+        logging.info("  S3_REGION=us-east-1")
+        logging.info("  AWS_ACCESS_KEY_ID=your_access_key")
+        logging.info("  AWS_SECRET_ACCESS_KEY=your_secret_key")
+        return None
+    
+    if not config.aws_access_key_id or not config.aws_secret_access_key:
+        logging.warning("AWS credentials not configured.")
+        logging.info("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
+        logging.info("Or configure AWS credentials file at ~/.aws/credentials")
         return None
     
     try:
         return S3DocumentStorage(config)
     except Exception as e:
         logging.error(f"Failed to create S3 storage: {str(e)}")
+        logging.info("Check your AWS credentials and S3 bucket configuration.")
         return None
