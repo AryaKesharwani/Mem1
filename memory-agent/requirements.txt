@@ -22,3 +22,14 @@ openai
 
 # STM backend
 redis>=4.5.0
+
+# Web API
+fastapi
+uvicorn[standard]
+pydantic
+aiohttp
+
+# AWS S3 for document storage
+boto3
+botocore
+python-multipart

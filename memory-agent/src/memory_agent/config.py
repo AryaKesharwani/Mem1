@@ -70,6 +70,13 @@ class MemoryConfig:
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY")  # Load from environment variable
     pinecone_environment: str = os.getenv("PINECONE_ENVIRONMENT", "aws-us-west-2")  # Default to AWS us-west-2
     
+    # S3 settings for document storage
+    s3_bucket_name: str = os.getenv("S3_BUCKET_NAME")  # S3 bucket for document storage
+    s3_region: str = os.getenv("S3_REGION")  # S3 region
+    s3_prefix: str = os.getenv("S3_PREFIX")  # S3 key prefix
+    aws_access_key_id: str = os.getenv("AWS_ACCESS_KEY_ID")  # AWS access key
+    aws_secret_access_key: str = os.getenv("AWS_SECRET_ACCESS_KEY")  # AWS secret key
+    
     # RAG settings
     chunk_size: int = 512                       # Document chunk size in tokens
     chunk_overlap: int = 50                     # Overlap between chunks

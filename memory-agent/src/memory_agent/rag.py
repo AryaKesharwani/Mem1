@@ -17,6 +17,7 @@ from .config import MemoryConfig
 from .models import MemoryRecord, MemoryType, DocumentChunk
 from .stores import VectorStore, create_vector_store
 from .utils import generate_embedding, estimate_tokens
+from .s3_storage import S3DocumentStorage, create_s3_storage
 
 
 class DocumentProcessor:
@@ -256,6 +257,7 @@ class RAGMemoryManager:
     
     Handles document ingestion, storage, and retrieval with
     hybrid search capabilities (semantic + keyword + metadata).
+    Uses S3 for document storage and Pinecone for vector search.
     """
     
     def __init__(self, config: MemoryConfig):
@@ -265,6 +267,11 @@ class RAGMemoryManager:
         
         # Document processor
         self.processor = DocumentProcessor(config)
+        
+        # S3 document storage
+        self.s3_storage = create_s3_storage(config)
+        if not self.s3_storage:
+            self.logger.warning("S3 storage not available. Documents will not be persisted.")
         
         # Vector stores for different tenants/users (initialized lazily)
         self.stores: Dict[str, VectorStore] = {}
@@ -279,10 +286,13 @@ class RAGMemoryManager:
         tenant_id: str,
         user_id: str,
         content_type: str = "text/plain",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        filename: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Ingest a document into RAG memory.
+        
+        Stores the original document in S3 and creates vector embeddings in Pinecone.
         
         Args:
             content: Document content
@@ -291,11 +301,28 @@ class RAGMemoryManager:
             user_id: User identifier
             content_type: MIME type of the document
             metadata: Optional document metadata
+            filename: Original filename (optional)
             
         Returns:
             Ingestion result with status and metadata
         """
         try:
+            # Store original document in S3
+            s3_result = None
+            if self.s3_storage:
+                s3_result = await self.s3_storage.store_document(
+                    content=content,
+                    document_id=document_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    content_type=content_type,
+                    filename=filename,
+                    metadata=metadata
+                )
+                
+                if s3_result["status"] != "success":
+                    self.logger.warning(f"S3 storage failed for {document_id}: {s3_result.get('error')}")
+            
             # Process document into chunks
             chunks = await self.processor.process_document(
                 content=content,
@@ -317,6 +344,24 @@ class RAGMemoryManager:
                 # Generate embedding for chunk
                 embedding = await generate_embedding(chunk.content, self.config)
                 
+                # Create memory record with S3 reference
+                chunk_metadata = {
+                    "document_id": document_id,
+                    "chunk_index": chunk.chunk_index,
+                    "token_count": chunk.token_count,
+                    "content_type": content_type,
+                    **chunk.metadata
+                }
+                
+                # Add S3 information if available
+                if s3_result and s3_result["status"] == "success":
+                    chunk_metadata.update({
+                        "s3_key": s3_result["s3_key"],
+                        "s3_url": s3_result["s3_url"],
+                        "s3_bucket": s3_result["bucket"],
+                        "content_hash": s3_result["content_hash"]
+                    })
+                
                 # Create memory record
                 record = MemoryRecord(
                     id=chunk.chunk_id,
@@ -331,30 +376,37 @@ class RAGMemoryManager:
                     recency_score=1.0,  # New documents are recent
                     relevance_score=0.0,  # Will be calculated during search
                     embedding=embedding,
-                    metadata={
-                        "document_id": document_id,
-                        "chunk_index": chunk.chunk_index,
-                        "token_count": chunk.token_count,
-                        "content_type": content_type,
-                        **chunk.metadata
-                    }
+                    metadata=chunk_metadata
                 )
                 
                 records.append(record)
             
-            # Store records in vector store
+            # Store records in Pinecone vector store
             store = await self._get_store(tenant_id, user_id)
             stored_ids = await store.add_records(records)
             
-            self.logger.info(f"Ingested document {document_id}: {len(stored_ids)} chunks stored")
+            self.logger.info(f"Ingested document {document_id}: {len(stored_ids)} chunks stored in Pinecone")
             
-            return {
+            result = {
                 "status": "success",
                 "system": "rag",
                 "document_id": document_id,
                 "chunks_stored": len(stored_ids),
                 "chunk_ids": stored_ids
             }
+            
+            # Add S3 information to result
+            if s3_result and s3_result["status"] == "success":
+                result.update({
+                    "s3_stored": True,
+                    "s3_key": s3_result["s3_key"],
+                    "s3_url": s3_result["s3_url"],
+                    "content_hash": s3_result["content_hash"]
+                })
+            else:
+                result["s3_stored"] = False
+            
+            return result
             
         except Exception as e:
             self.logger.error(f"Document ingestion failed for {document_id}: {str(e)}")
