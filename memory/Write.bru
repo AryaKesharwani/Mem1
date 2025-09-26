@@ -1,0 +1,33 @@
+meta {
+  name: Write
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8000/write
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "user_text": "Last year I had an amazing experience in Tokyo where I discovered this tiny ramen shop in a back alley. The owner didn't speak English but we communicated through gestures and I had the best ramen of my life. It was such a memorable experience!",
+    "assistant_text": "That sounds like an incredible and authentic travel experience! Those serendipitous moments when you discover hidden gems through non-verbal communication often become the most memorable parts of travel. It's wonderful how food can transcend language barriers. For your Paris trip, I can recommend some similar hidden gems and local spots where you might have equally memorable experiences.",
+    "tenant_id": "test_tenant",
+    "user_id": "test_user",
+    "agent_id": "test_agent",
+    "conversation_id": "episodic_test_conversation",
+    "topic_hint": "travel_experience",
+    "metadata": {
+      "importance": "high",
+      "category": "travel_memory",
+      "location": "tokyo",
+      "year": "2023"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}

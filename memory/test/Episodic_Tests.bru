@@ -1,0 +1,277 @@
+meta {
+  name: Episodic Memory Tests
+  type: http
+  version: 1
+}
+
+vars {
+  baseUrl: http://localhost:8000
+  tenantId: test_tenant
+  userId: test_user
+  agentId: test_agent
+  conversationId: episodic_test_conversation
+}
+
+# Episodic - Write Travel Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Tokyo Travel Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Last year I had an amazing experience in Tokyo where I discovered this tiny ramen shop in a back alley. The owner didn't speak English but we communicated through gestures and I had the best ramen of my life. It was such a memorable experience!",
+  "assistant_text": "That sounds like an incredible and authentic travel experience! Those serendipitous moments when you discover hidden gems through non-verbal communication often become the most memorable parts of travel. It's wonderful how food can transcend language barriers. For your Paris trip, I can recommend some similar hidden gems and local spots where you might have equally memorable experiences.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "travel_memory",
+    "location": "tokyo",
+    "year": "2023"
+  }
+}
+
+# Episodic - Write Work Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Presentation Success Story
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I remember when I first started my current job, I was really nervous about presenting to the board. But my manager gave me great advice about focusing on the data and telling a story with the numbers. That presentation went really well and I've used that approach ever since.",
+  "assistant_text": "That's a great example of how mentorship and good advice can have a lasting impact on your professional development. The combination of data-driven insights with storytelling is indeed a powerful approach for presentations. It sounds like that experience really shaped your presentation style and confidence. Have you had opportunities to mentor others based on what you learned?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "work_experience",
+  "metadata": {
+    "importance": "medium",
+    "category": "professional_development",
+    "context": "early_career"
+  }
+}
+
+# Episodic - Write Learning Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Learning Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I had a breakthrough moment last month when I finally understood how transformer architectures work. I was reading a paper at 2 AM and suddenly everything clicked. I spent the next 3 hours implementing a simple transformer from scratch just to test my understanding.",
+  "assistant_text": "That's an amazing learning breakthrough! Those 'aha' moments in the middle of the night when complex concepts suddenly make sense are so rewarding. The fact that you immediately implemented it to test your understanding shows great learning methodology. Those deep understanding moments often lead to the most lasting knowledge. What was the most surprising thing you discovered during your implementation?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "learning_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "learning_breakthrough",
+    "topic": "transformer_architectures",
+    "time": "late_night"
+  }
+}
+
+# Episodic - Write Social Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Social Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I met my best friend at a coding bootcamp 3 years ago. We were both struggling with the same algorithm problem and started working on it together. We've been close friends ever since and even started a side project together last year.",
+  "assistant_text": "That's a beautiful story of how shared challenges can lead to lasting friendships! It's wonderful how working through difficult problems together can create such strong bonds. The fact that you've maintained the friendship and even collaborate on projects shows how meaningful that initial connection was. What kind of side project are you working on together?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "social_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "friendship_formation",
+    "context": "coding_bootcamp",
+    "duration": "3_years"
+  }
+}
+
+# Episodic - Write Challenge Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Challenge Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I remember when I had to debug a production issue at 3 AM that was affecting thousands of users. I was panicking at first, but I took a deep breath and systematically went through the logs. I found the issue was a simple off-by-one error in a loop. It taught me the importance of staying calm under pressure.",
+  "assistant_text": "That's an incredibly valuable experience! Production issues at 3 AM are every developer's nightmare, but you handled it perfectly by staying calm and being systematic. The fact that it was a simple off-by-one error is a great reminder that even complex-seeming problems often have simple solutions. That experience probably made you a much more confident and effective developer. How do you approach debugging now compared to before that incident?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "challenge_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "professional_growth",
+    "context": "production_emergency",
+    "time": "3_am",
+    "impact": "thousands_of_users"
+  }
+}
+
+# Episodic - Query Travel Memories
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Travel Memories
+  body: json
+  auth: none
+}
+
+{
+  "query": "Tell me about my memorable travel experiences",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_memories"
+}
+
+# Episodic - Query Work Experiences
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Work Experiences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What work experiences have shaped my professional development?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "professional_development"
+}
+
+# Episodic - Query Learning Experiences
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Learning Breakthroughs
+  body: json
+  auth: none
+}
+
+{
+  "query": "What learning experiences have been most impactful for me?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "learning_experiences"
+}
+
+# Episodic - Query Social Experiences
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Social Connections
+  body: json
+  auth: none
+}
+
+{
+  "query": "What meaningful social connections have I made?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "social_connections"
+}
+
+# Episodic - Query Challenge Experiences
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Challenging Situations
+  body: json
+  auth: none
+}
+
+{
+  "query": "What challenging situations have I overcome?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "challenge_experiences"
+}
+
+# Episodic - Cross-Conversation Query
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Cross-Conversation Query
+  body: json
+  auth: none
+}
+
+{
+  "query": "What memorable experiences have I shared with you?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "different_conversation",
+  "topic_hint": "past_experiences"
+}
+
+# Episodic - Write Recent Experience
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Recent Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Just last week, I had an amazing experience at a local tech meetup. I gave a 10-minute lightning talk about my side project and got so many great questions and feedback. Someone even offered to collaborate with me on the project!",
+  "assistant_text": "That's fantastic! Giving a lightning talk and getting such positive feedback must have been incredibly rewarding. The fact that someone offered to collaborate shows that your project really resonated with the audience. Those kinds of networking opportunities can lead to amazing partnerships and learning experiences. What was your side project about?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "recent_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "networking_success",
+    "context": "tech_meetup",
+    "timeline": "last_week",
+    "outcome": "collaboration_offer"
+  }
+}
+
+# Episodic - Query Recent Experiences
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Recent Experiences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What recent experiences have I had?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "recent_experiences"
+}

@@ -1,0 +1,214 @@
+meta {
+  name: STM (Short-Term Memory) Tests
+  type: http
+  version: 1
+}
+
+vars {
+  baseUrl: http://localhost:8000
+  tenantId: test_tenant
+  userId: test_user
+  agentId: test_agent
+  conversationId: stm_test_conversation
+}
+
+# STM - Write Conversation Turn 1
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Conversation Turn 1
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Hi, I'm planning a trip to Paris next month. I need help with recommendations.",
+  "assistant_text": "I'd be happy to help you plan your Paris trip! I can assist with recommendations for attractions, restaurants, hotels, and activities. What specific aspects of your trip would you like to focus on first?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning",
+  "metadata": {
+    "working_memory_updates": {
+      "current_topic": "paris_trip_planning",
+      "user_intent": "travel_recommendations"
+    }
+  }
+}
+
+# STM - Write Conversation Turn 2
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Conversation Turn 2
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I'm particularly interested in art museums and local cuisine. I have 5 days there.",
+  "assistant_text": "Perfect! Paris has incredible art museums and amazing cuisine. For art, you must visit the Louvre, Musée d'Orsay, and Centre Pompidou. For food, I recommend trying traditional bistros, patisseries, and local markets. Would you like specific restaurant recommendations in different arrondissements?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning",
+  "metadata": {
+    "working_memory_updates": {
+      "trip_duration": "5_days",
+      "interests": ["art_museums", "local_cuisine"],
+      "current_focus": "restaurant_recommendations"
+    }
+  }
+}
+
+# STM - Write Conversation Turn 3
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Conversation Turn 3
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Actually, let me also ask about transportation. What's the best way to get around Paris?",
+  "assistant_text": "Great question! Paris has an excellent public transportation system. The Metro is the most convenient and cost-effective way to get around the city. You can get a Paris Visite pass or a Navigo card depending on your needs. I'd also recommend walking in many areas as Paris is very pedestrian-friendly. Would you like specific recommendations based on your hotel location?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "transportation",
+  "metadata": {
+    "working_memory_updates": {
+      "current_topic": "transportation",
+      "transportation_interest": "metro_and_walking"
+    }
+  }
+}
+
+# STM - Query Recent Context
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query Recent Context
+  body: json
+  auth: none
+}
+
+{
+  "query": "What did we discuss about my Paris trip?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning"
+}
+
+# STM - Query Working Memory
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query Working Memory Context
+  body: json
+  auth: none
+}
+
+{
+  "query": "What's my current focus and what topics have we covered?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "current_context"
+}
+
+# STM - Query Recent Turn
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query Most Recent Turn
+  body: json
+  auth: none
+}
+
+{
+  "query": "What was the last thing we talked about?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "recent_context"
+}
+
+# STM - Test Conversation History
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Multiple Turns for History Test
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Let me think about the museums. Which one should I visit first?",
+  "assistant_text": "I'd recommend starting with the Louvre since it's the most famous and can take a full day. Then you could visit Musée d'Orsay on another day, and Centre Pompidou if you're interested in modern art. The Louvre is massive, so plan to spend at least 4-6 hours there.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "museum_planning"
+}
+
+# STM - Query Full Conversation History
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query Full Conversation History
+  body: json
+  auth: none
+}
+
+{
+  "query": "Can you summarize our entire conversation about Paris?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "conversation_summary"
+}
+
+# STM - Test Different Conversation Context
+post {
+  url: {{baseUrl}}/write
+  name: STM - New Conversation Context
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I need help with a work presentation next week.",
+  "assistant_text": "I'd be happy to help you prepare for your presentation! What's the topic and who's your audience?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "work_conversation_stm",
+  "topic_hint": "work_presentation",
+  "metadata": {
+    "working_memory_updates": {
+      "current_context": "work",
+      "task": "presentation",
+      "timeline": "next_week"
+    }
+  }
+}
+
+# STM - Query New Context
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query New Conversation Context
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are we working on?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "work_conversation_stm",
+  "topic_hint": "current_task"
+}

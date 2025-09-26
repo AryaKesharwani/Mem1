@@ -1,0 +1,264 @@
+meta {
+  name: Semantic Memory Tests
+  type: http
+  version: 1
+}
+
+vars {
+  baseUrl: http://localhost:8000
+  tenantId: test_tenant
+  userId: test_user
+  agentId: test_agent
+  conversationId: semantic_test_conversation
+}
+
+# Semantic - Write User Preferences
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Hotel Preferences
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I always prefer boutique hotels over large chains, and I love trying local street food when I travel.",
+  "assistant_text": "Noted! I'll keep that in mind for your Paris recommendations. Boutique hotels often provide a more authentic experience, and Paris has amazing street food options like crêpes, falafel in the Marais, and various food markets. I'll focus on these types of accommodations and dining experiences for your trip.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "user_preferences",
+  "metadata": {
+    "importance": "high",
+    "category": "travel_preferences"
+  }
+}
+
+# Semantic - Write Dietary Restrictions
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Dietary Restrictions
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I'm allergic to shellfish and I don't eat pork. This is important for restaurant recommendations.",
+  "assistant_text": "Thank you for letting me know about your dietary restrictions. I'll make sure to recommend restaurants that can accommodate your shellfish allergy and avoid pork-based dishes. Paris has many excellent vegetarian and seafood-free options, and most restaurants are very accommodating with dietary needs.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "dietary_restrictions",
+  "metadata": {
+    "importance": "critical",
+    "category": "health_information"
+  }
+}
+
+# Semantic - Write Personal Facts
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Personal Facts
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I work as a software engineer and I'm originally from San Francisco. I moved to New York last year for a new job opportunity.",
+  "assistant_text": "That's great to know about your background! Being a software engineer from San Francisco and now in New York gives you a unique perspective on tech culture in both cities. How are you finding the transition to New York?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "personal_information",
+  "metadata": {
+    "importance": "medium",
+    "category": "personal_facts"
+  }
+}
+
+# Semantic - Write Work Preferences
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Work Preferences
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I prefer working remotely and I'm most productive in the mornings. I also like to take breaks every 2 hours to stay focused.",
+  "assistant_text": "That's a great work routine! Remote work with morning productivity and regular breaks is an excellent approach to maintaining focus and work-life balance. Many people find that taking breaks actually improves their overall productivity and creativity.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "work_preferences",
+  "metadata": {
+    "importance": "medium",
+    "category": "work_style"
+  }
+}
+
+# Semantic - Query User Preferences
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Travel Preferences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are my hotel and food preferences?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "user_preferences"
+}
+
+# Semantic - Query Dietary Restrictions
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Dietary Restrictions
+  body: json
+  auth: none
+}
+
+{
+  "query": "Do I have any dietary restrictions I should know about?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "health_information"
+}
+
+# Semantic - Query Personal Information
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Personal Facts
+  body: json
+  auth: none
+}
+
+{
+  "query": "What do you know about my background and work?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "personal_information"
+}
+
+# Semantic - Query Work Preferences
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Work Style
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are my work preferences and productivity habits?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "work_preferences"
+}
+
+# Semantic - Cross-Conversation Query
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Cross-Conversation Query
+  body: json
+  auth: none
+}
+
+{
+  "query": "What do you know about my preferences and restrictions?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "different_conversation",
+  "topic_hint": "user_knowledge"
+}
+
+# Semantic - Write Technical Knowledge
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Technical Knowledge
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I specialize in Python and React development. I have 5 years of experience with machine learning and I'm currently learning about large language models.",
+  "assistant_text": "That's an impressive technical background! Python and React are excellent choices, and your machine learning experience combined with learning about LLMs puts you in a great position for the current AI landscape. Are you working on any specific LLM projects?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "technical_skills",
+  "metadata": {
+    "importance": "high",
+    "category": "professional_skills"
+  }
+}
+
+# Semantic - Query Technical Knowledge
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Technical Skills
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are my technical skills and programming languages?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "technical_skills"
+}
+
+# Semantic - Write Learning Goals
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Learning Goals
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "My goal is to become a senior AI engineer within the next 2 years. I want to focus on natural language processing and computer vision.",
+  "assistant_text": "That's an ambitious and well-defined career goal! NLP and computer vision are both rapidly evolving fields with lots of opportunities. Your machine learning background and current LLM learning are great foundations for this path. What specific areas within NLP and CV interest you most?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "career_goals",
+  "metadata": {
+    "importance": "high",
+    "category": "career_aspirations"
+  }
+}
+
+# Semantic - Query Career Goals
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Career Aspirations
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are my career goals and learning objectives?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "career_goals"
+}

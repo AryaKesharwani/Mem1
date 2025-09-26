@@ -1,0 +1,464 @@
+meta {
+  name: Memory Agent Tests
+  type: http
+  version: 1
+}
+
+vars {
+  baseUrl: http://localhost:8000
+  tenantId: test_tenant
+  userId: test_user
+  agentId: test_agent
+  conversationId: test_conversation_001
+}
+
+# Health Check
+get {
+  url: {{baseUrl}}/health
+  name: Health Check
+  body: none
+  auth: none
+}
+
+# System Information
+get {
+  url: {{baseUrl}}/info
+  name: System Information
+  body: none
+  auth: none
+}
+
+# Root Endpoint
+get {
+  url: {{baseUrl}}/
+  name: Root Endpoint
+  body: none
+  auth: none
+}
+
+# STM Tests - Short Term Memory
+
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Conversation Turn 1
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Hi, I'm planning a trip to Paris next month. I need help with recommendations.",
+  "assistant_text": "I'd be happy to help you plan your Paris trip! I can assist with recommendations for attractions, restaurants, hotels, and activities. What specific aspects of your trip would you like to focus on first?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning",
+  "metadata": {
+    "working_memory_updates": {
+      "current_topic": "paris_trip_planning",
+      "user_intent": "travel_recommendations"
+    }
+  }
+}
+
+post {
+  url: {{baseUrl}}/write
+  name: STM - Write Conversation Turn 2
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I'm particularly interested in art museums and local cuisine. I have 5 days there.",
+  "assistant_text": "Perfect! Paris has incredible art museums and amazing cuisine. For art, you must visit the Louvre, Musée d'Orsay, and Centre Pompidou. For food, I recommend trying traditional bistros, patisseries, and local markets. Would you like specific restaurant recommendations in different arrondissements?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning",
+  "metadata": {
+    "working_memory_updates": {
+      "trip_duration": "5_days",
+      "interests": ["art_museums", "local_cuisine"],
+      "current_focus": "restaurant_recommendations"
+    }
+  }
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: STM - Query Recent Context
+  body: json
+  auth: none
+}
+
+{
+  "query": "What did we discuss about my Paris trip?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_planning"
+}
+
+# Semantic Memory Tests - Facts and Knowledge
+
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write User Preferences
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I always prefer boutique hotels over large chains, and I love trying local street food when I travel.",
+  "assistant_text": "Noted! I'll keep that in mind for your Paris recommendations. Boutique hotels often provide a more authentic experience, and Paris has amazing street food options like crêpes, falafel in the Marais, and various food markets. I'll focus on these types of accommodations and dining experiences for your trip.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "user_preferences",
+  "metadata": {
+    "importance": "high",
+    "category": "travel_preferences"
+  }
+}
+
+post {
+  url: {{baseUrl}}/write
+  name: Semantic - Write Factual Knowledge
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I'm allergic to shellfish and I don't eat pork. This is important for restaurant recommendations.",
+  "assistant_text": "Thank you for letting me know about your dietary restrictions. I'll make sure to recommend restaurants that can accommodate your shellfish allergy and avoid pork-based dishes. Paris has many excellent vegetarian and seafood-free options, and most restaurants are very accommodating with dietary needs.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "dietary_restrictions",
+  "metadata": {
+    "importance": "critical",
+    "category": "health_information"
+  }
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query User Preferences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What are my hotel and food preferences?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "user_preferences"
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Semantic - Query Dietary Restrictions
+  body: json
+  auth: none
+}
+
+{
+  "query": "Do I have any dietary restrictions I should know about?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "health_information"
+}
+
+# Episodic Memory Tests - Events and Experiences
+
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Travel Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Last year I had an amazing experience in Tokyo where I discovered this tiny ramen shop in a back alley. The owner didn't speak English but we communicated through gestures and I had the best ramen of my life. It was such a memorable experience!",
+  "assistant_text": "That sounds like an incredible and authentic travel experience! Those serendipitous moments when you discover hidden gems through non-verbal communication often become the most memorable parts of travel. It's wonderful how food can transcend language barriers. For your Paris trip, I can recommend some similar hidden gems and local spots where you might have equally memorable experiences.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_experience",
+  "metadata": {
+    "importance": "high",
+    "category": "travel_memory",
+    "location": "tokyo",
+    "year": "2023"
+  }
+}
+
+post {
+  url: {{baseUrl}}/write
+  name: Episodic - Write Work Experience
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I remember when I first started my current job, I was really nervous about presenting to the board. But my manager gave me great advice about focusing on the data and telling a story with the numbers. That presentation went really well and I've used that approach ever since.",
+  "assistant_text": "That's a great example of how mentorship and good advice can have a lasting impact on your professional development. The combination of data-driven insights with storytelling is indeed a powerful approach for presentations. It sounds like that experience really shaped your presentation style and confidence. Have you had opportunities to mentor others based on what you learned?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "work_experience",
+  "metadata": {
+    "importance": "medium",
+    "category": "professional_development",
+    "context": "early_career"
+  }
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Travel Memories
+  body: json
+  auth: none
+}
+
+{
+  "query": "Tell me about my memorable travel experiences",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_memories"
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Episodic - Query Work Experiences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What work experiences have shaped my professional development?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "professional_development"
+}
+
+# Combined Memory System Tests
+
+post {
+  url: {{baseUrl}}/query
+  name: Combined - Query All Memory Systems
+  body: json
+  auth: none
+}
+
+{
+  "query": "Based on everything we've discussed, help me plan my Paris trip considering my preferences, restrictions, and past experiences",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "comprehensive_travel_planning",
+  "user_metadata": {
+    "current_context": "trip_planning",
+    "urgency": "medium"
+  }
+}
+
+post {
+  url: {{baseUrl}}/write
+  name: Combined - Write Complex Interaction
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Actually, I just remembered that my friend Sarah who lives in Paris mentioned this amazing bistro near the Seine. She said it's family-owned and they make incredible coq au vin. I should definitely check it out since I love authentic local experiences like the ramen place in Tokyo.",
+  "assistant_text": "That's perfect! Sarah's recommendation sounds exactly like the kind of authentic, family-owned experience you appreciate, similar to your memorable ramen discovery in Tokyo. A bistro near the Seine with excellent coq au vin would be a wonderful addition to your Paris itinerary. Since you mentioned loving local street food and authentic experiences, this fits perfectly with your travel style. Would you like me to help you find more similar recommendations or help you plan the logistics of visiting this bistro?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "travel_recommendations",
+  "metadata": {
+    "working_memory_updates": {
+      "friend_recommendation": "sarah_bistro_seine",
+      "dish_interest": "coq_au_vin"
+    },
+    "importance": "high",
+    "category": "social_recommendation"
+  }
+}
+
+# Memory System Specific Queries
+
+post {
+  url: {{baseUrl}}/query
+  name: STM Focus - Recent Conversation
+  body: json
+  auth: none
+}
+
+{
+  "query": "What did we just talk about?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "recent_context"
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Semantic Focus - User Facts
+  body: json
+  auth: none
+}
+
+{
+  "query": "What do you know about my preferences and restrictions?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "user_knowledge"
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Episodic Focus - Past Experiences
+  body: json
+  auth: none
+}
+
+{
+  "query": "What memorable experiences have I shared with you?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "past_experiences"
+}
+
+# Edge Cases and Error Testing
+
+post {
+  url: {{baseUrl}}/query
+  name: Edge Case - Empty Query
+  body: json
+  auth: none
+}
+
+{
+  "query": "",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}"
+}
+
+post {
+  url: {{baseUrl}}/write
+  name: Edge Case - Very Long Text
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "This is a very long user message that contains a lot of text to test how the memory systems handle longer inputs. It includes multiple sentences, various topics, and should help us understand how the system processes and stores extensive information. The message covers travel preferences, work experiences, personal anecdotes, and various other topics that might be relevant for testing the memory systems' capabilities with longer content.",
+  "assistant_text": "I understand you're testing how the system handles longer inputs. This is indeed a substantial amount of text that covers multiple topics including travel preferences, work experiences, and personal anecdotes. The memory systems should be able to process and store this information effectively, extracting relevant facts for semantic memory, identifying memorable experiences for episodic memory, and maintaining the conversation context in short-term memory.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "{{conversationId}}",
+  "topic_hint": "system_testing"
+}
+
+# Different Conversation Contexts
+
+post {
+  url: {{baseUrl}}/write
+  name: New Conversation - Work Context
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "I need help preparing for my quarterly presentation to the board next week.",
+  "assistant_text": "I'd be happy to help you prepare for your board presentation! Based on your past experience with presentations, I know you've found success with data-driven storytelling. What specific aspects of the presentation would you like to focus on - the content structure, data visualization, or delivery techniques?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "work_conversation_001",
+  "topic_hint": "work_presentation",
+  "metadata": {
+    "working_memory_updates": {
+      "current_context": "work",
+      "task": "board_presentation",
+      "timeline": "next_week"
+    }
+  }
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Cross-Conversation Query
+  body: json
+  auth: none
+}
+
+{
+  "query": "What do you know about my presentation skills and travel preferences?",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "work_conversation_001",
+  "topic_hint": "cross_context_query"
+}
+
+# Performance and Load Testing
+
+post {
+  url: {{baseUrl}}/write
+  name: Performance Test - Multiple Writes
+  body: json
+  auth: none
+}
+
+{
+  "user_text": "Quick test message for performance testing.",
+  "assistant_text": "Received your test message. This is for performance testing purposes.",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "perf_test_001",
+  "topic_hint": "performance_testing"
+}
+
+post {
+  url: {{baseUrl}}/query
+  name: Performance Test - Query
+  body: json
+  auth: none
+}
+
+{
+  "query": "test query",
+  "tenant_id": "{{tenantId}}",
+  "user_id": "{{userId}}",
+  "agent_id": "{{agentId}}",
+  "conversation_id": "perf_test_001"
+}

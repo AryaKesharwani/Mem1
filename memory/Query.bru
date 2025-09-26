@@ -1,0 +1,27 @@
+meta {
+  name: Query
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8000/query
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "query": "What recent experiences have I had?",
+  "tenant_id": "test_tenant",
+    "user_id": "test_user",
+    "agent_id": "test_agent",
+  "conversation_id": "episodic_test_conversation",
+    "topic_hint": "recent_experiences"
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+}
